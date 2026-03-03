@@ -1,0 +1,82 @@
+[
+  {
+    "query": "Give me top comedies from 2012",
+    "expected_strategy": "sql",
+    "expected_min_results": 1
+  },
+  {
+    "query": "What comedies are on Netflix from 2012?",
+    "expected_strategy": "streaming",
+    "expected_min_results": 1
+  },
+  {
+    "query": "What animated movies are on Hulu?",
+    "expected_strategy": "streaming",
+    "expected_min_results": 1
+  },
+  {
+    "query": "Tell me about Inception",
+    "expected_strategy": "sql",
+    "expected_min_results": 1
+  },
+  {
+    "query": "Recommend recent action movies",
+    "expected_strategy": "sql",
+    "expected_min_results": 1
+  },
+  {
+    "query": "Any family movies on Disney+?",
+    "expected_strategy": "streaming",
+    "expected_min_results": 1
+  },
+  {
+    "query": "Best rated sci-fi movies",
+    "expected_strategy": "sql",
+    "expected_min_results": 1
+  },
+  {
+    "query": "What can I watch on Prime Video?",
+    "expected_strategy": "streaming",
+    "expected_min_results": 1
+  },
+  {
+    "query": "Find thrillers directed by Christopher Nolan",
+    "expected_strategy": "sql",
+    "expected_min_results": 1
+  },
+  {
+    "query": "Comedies on Hulu from 2009",
+    "expected_strategy": "streaming",
+    "expected_min_results": 1
+  },
+  {
+    "query": "Recommend movies with a dark psychological vibe",
+    "expected_strategy": "semantic",
+    "expected_min_results": 1
+  },
+  {
+    "query": "Suggest emotional coming-of-age films with strong character growth",
+    "expected_strategy": "semantic",
+    "expected_min_results": 1
+  },
+  {
+    "query": "Find mind-bending sci-fi movies about dreams and reality",
+    "expected_strategy": "semantic",
+    "expected_min_results": 1
+  },
+  {
+    "query": "Give me action movies from 2015 with an intense gritty tone",
+    "expected_strategy": "hybrid",
+    "expected_min_results": 1
+  },
+  {
+    "query": "Recommend comedies from 2012 with a feel-good vibe",
+    "expected_strategy": "hybrid",
+    "expected_min_results": 1
+  },
+  {
+    "query": "Show recent thriller movies with a slow-burn atmosphere",
+    "expected_strategy": "hybrid",
+    "expected_min_results": 1
+  }
+]
