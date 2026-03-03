@@ -112,11 +112,9 @@ Response:
     }
   ],
   "metadata": {
-    "intent": "agent",
     "retrieval_strategy": "sql",
     "results_found": 7,
     "retrieval_time_ms": 62.4,
-    "confidence": 0.79,
     "reasoning": "I selected these movies because they are all comedies released in 2012..."
   }
 }
@@ -179,7 +177,7 @@ After the agent produces a draft response, a second structured LLM call selects 
 
 ### Observability
 
-Each response includes `trace_id`, `confidence` (deterministic score based on results found and strategy), `retrieval_strategy`, `retrieval_time_ms`, and optionally `reasoning` from the grounding step. Structured JSON logs are emitted per request.
+Each response includes `trace_id`, `retrieval_strategy`, `results_found`, `retrieval_time_ms`, and optionally `reasoning` from the grounding step. Structured JSON logs are emitted per request.
 
 ### Sessions
 
@@ -187,7 +185,7 @@ Each conversation has a `session_id`. An in-memory `SessionManager` stores the l
 
 ## LLM Provider
 
-Uses a `Protocol` (`LLMProvider`) with three methods: `complete()`, `complete_structured()`, `complete_with_tools()`. The `OpenAIProvider` implements this against `gpt-4o-mini`. Swapping to another provider (Ollama, Anthropic) means implementing one class with no changes to agent code.
+`OpenAIProvider` is a concrete class with two methods: `complete_structured()` and `complete_with_tools()`. It runs against `gpt-4o-mini` by default. Swapping providers works via duck typing — as demonstrated by `MockLLMProvider` in the test suite — with no changes to agent code.
 
 ## Project Structure
 
@@ -201,13 +199,12 @@ app/
 │   ├── db.py              # ORM models
 │   └── schemas.py         # Request/response schemas
 ├── routers/
-│   └── chat.py            # /health, /chat, confidence scoring
+│   └── chat.py            # /health, /chat endpoints
 ├── services/
 │   ├── movie_agent.py     # ReAct loop, grounding, tracing
 │   ├── agent_tools.py     # retrieve_movies, search_streaming
 │   └── session.py         # In-memory session store
 ├── llm/
-│   ├── provider.py        # LLMProvider Protocol
 │   └── openai_provider.py
 ├── repository/
 │   └── movie_repo.py      # SQL query builder
@@ -273,5 +270,6 @@ All via environment variables (`.env.example`):
 | `DATABASE_URL` | `sqlite+aiosqlite:///./data/movies.db` | SQLite path |
 | `EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | Sentence transformer |
 | `FAISS_INDEX_PATH` | `./data/faiss.index` | FAISS index file |
+| `MOVIE_IDS_PATH` | `./data/movie_ids.npy` | NumPy array mapping FAISS index positions to movie IDs |
 | `MAX_RETRIEVAL_RESULTS` | `10` | Max movies per query |
 | `LOG_LEVEL` | `INFO` | Logging verbosity |
