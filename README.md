@@ -1,6 +1,6 @@
 # Movie Conversational AI Agent
 
-A REST API for a conversational AI agent that answers questions about movies using hybrid retrieval (SQL + semantic search) and LLM-powered response generation.
+A REST API for a conversational AI virtual agent that answers questions about movies using hybrid retrieval (SQL + semantic search) and LLM-powered response generation. Built with Python 3.11+, FastAPI, SQLite, FAISS, and OpenAI.
 
 ## Approach: Combining Structured Data with LLM
 
@@ -9,10 +9,10 @@ The core idea is that neither pure database queries nor a standalone LLM can sol
 This project combines both through a **ReAct agent loop**:
 
 1. The user's message goes to the LLM alongside tool schemas
-2. The LLM decides which tool to call -- `retrieve_movies` for structured/semantic search, or `search_streaming` for platform availability
+2. The LLM decides which tool to call — `retrieve_movies` for structured/semantic search, or `search_streaming` for platform availability
 3. The tool fetches real data from SQLite (structured filters) and/or FAISS (semantic similarity over movie overviews)
 4. The tool result is returned to the LLM as an observation, which it uses to compose a grounded response
-5. A **grounding step** then validates the response -- a second LLM call selects only movie IDs that exist in the retrieved set, stripping anything hallucinated
+5. A **grounding step** then validates the response — a second LLM call selects only movie IDs that exist in the retrieved set, stripping anything hallucinated
 
 This means the LLM handles intent parsing and natural language generation, while the database and vector index handle factual retrieval. The grounding step closes the loop by ensuring the final response only references movies that were actually retrieved.
 
@@ -36,7 +36,7 @@ User ──► POST /chat
          JSON response with movies, metadata, trace_id
 ```
 
-## Quick Start
+## Quickstart in 60 Seconds
 
 ### Prerequisites
 - Python 3.11+
@@ -46,19 +46,19 @@ User ──► POST /chat
 
 ```bash
 # 1. Clone and install
-git clone https://github.com/Eoghanmcc1000/Project1.git && cd Project1
+git clone https://github.com/Eoghanmcc1000/ProjectMovie1.git && cd ProjectMovie1
 make setup
 
 # 2. Add your OpenAI API key to .env
 nano .env
 
-# 3. Download datasets into data/
-# TMDB 5000: https://www.kaggle.com/datasets/tmdb/tmdb-movie-metadata
-#   → Place tmdb_5000_movies.csv and tmdb_5000_credits.csv in data/
-# Streaming: https://www.kaggle.com/datasets/ruchi798/movies-on-netflix-prime-video-hulu-and-disney
-#   → Place MoviesOnStreamingPlatforms.csv in data/
+# 3. Download datasets manually into data/
+#    TMDB 5000: https://www.kaggle.com/datasets/tmdb/tmdb-movie-metadata
+#      → Place tmdb_5000_movies.csv and tmdb_5000_credits.csv in data/
+#    Streaming: https://www.kaggle.com/datasets/ruchi798/movies-on-netflix-prime-video-hulu-and-disney
+#      → Place MoviesOnStreamingPlatforms.csv in data/
 
-# 4. Ingest data (~4800 movies into SQLite + FAISS index)
+# 4. Ingest TMDB data (~4800 movies into SQLite + FAISS index)
 make ingest
 
 # 5. Ingest streaming platform data
@@ -69,6 +69,17 @@ make run
 ```
 
 Interactive API docs (Swagger UI): http://localhost:8000/docs — open in a browser to try the `/chat` endpoint directly, send messages, and inspect responses without needing curl.
+
+## Incomplete Items & Known Limitations
+
+> **Note:** This is a proof-of-concept built under time constraints. The following items were identified as improvements but not implemented due to time. Apologies for the rough edges — I'm happy to discuss these tradeoffs in detail.
+
+- **Manual data ingestion:** The CSV datasets must be downloaded manually from Kaggle and placed in `data/`. Ideally this would be automated via `make download-data` using the Kaggle API with a fallback to clear instructions when credentials are missing. I simply didn't have time to implement this.
+- **Two separate ingestion scripts:** Currently `scripts/ingest.py` handles TMDB movies/credits/FAISS and `scripts/ingest_streaming.py` handles streaming platform data. These could be consolidated into a single CLI with subcommands (`ingest core`, `ingest streaming`, `ingest all`) for a cleaner developer experience. The split is functional but adds friction.
+- **Ingestion is not idempotent:** Running `make ingest` twice on the same database may cause primary key conflicts or duplicate rows. For a clean re-ingest, run `make clean` first to remove the database and FAISS index, then re-run ingestion. A `--reset` flag or automatic table truncation would be the proper fix.
+- **Hallucination metric is heuristic-based:** The evaluation harness (`scripts/eval.py`) checks for hallucinated movie titles by extracting bold-formatted titles from response text. This is an approximation — if the LLM doesn't consistently bold-format titles, the metric may under-report. Results should be read as "heuristic-based hallucination check" rather than an absolute guarantee.
+- **No authentication or rate limiting** on the API endpoints.
+- **Session storage is in-memory** — sessions are lost on server restart.
 
 ## API
 
@@ -140,7 +151,7 @@ The ingestion script (`scripts/ingest.py`) parses two TMDB 5000 CSVs into 6 tabl
 | `genres` / `movie_genres` | Genre lookup + many-to-many join |
 | `cast_members` | Top 10 cast per movie (name, character, order) |
 | `crew_members` | Directors only |
-| `movie_platforms` | Streaming availability (Netflix, Hulu, Prime Video, Disney+) |
+| `movie_platforms` | Streaming availability (Netflix, Hulu, Prime Video, Disney+) — ingested separately via `scripts/ingest_streaming.py` |
 
 During ingestion, an **IMDb-style weighted rating** is computed per movie to prevent low-vote-count movies from ranking artificially high.
 
@@ -154,17 +165,17 @@ The user's message is sent to the LLM with two tool schemas. The LLM decides whi
 
 ### Tools
 
-**`retrieve_movies`** -- Accepts structured filters (title, genre, year, actor, director, min_rating, sort_by) and/or a `semantic_query` string. Mode is resolved automatically:
+**`retrieve_movies`** — Accepts structured filters (title, genre, year, actor, director, min_rating, sort_by) and/or a `semantic_query` string. Mode is resolved automatically:
 - Structured filters only → SQL
 - Semantic query only → FAISS
 - Both → hybrid (run both, merge and deduplicate)
 - If FAISS is unavailable, falls back to SQL
 
-**`search_streaming`** -- Queries `movie_platforms` for a specific platform, with optional genre and year filters.
+**`search_streaming`** — Queries `movie_platforms` for a specific platform, with optional genre and year filters.
 
 ### Grounding
 
-After the agent produces a draft response, a second structured LLM call selects which movie IDs from the retrieved set are relevant and writes a response using only those. A validator strips any IDs not in the retrieval set.
+After the agent produces a draft response, a second structured LLM call selects which movie IDs from the retrieved set are relevant and writes a response using only those. A validator strips any IDs not in the retrieval set. This adds latency (extra LLM call) but reduces hallucination risk — a tradeoff I'd revisit in production (e.g., deterministic templating for low-latency mode).
 
 ### Observability
 
@@ -182,32 +193,35 @@ Uses a `Protocol` (`LLMProvider`) with three methods: `complete()`, `complete_st
 
 ```
 app/
-├── main.py              # FastAPI app, lifespan
-├── config.py             # pydantic-settings
-├── database.py           # Async SQLAlchemy engine
-├── dependencies.py       # Singleton init
+├── main.py               # FastAPI app, lifespan
+├── config.py              # pydantic-settings
+├── database.py            # Async SQLAlchemy engine
+├── dependencies.py        # Singleton init
 ├── models/
-│   ├── db.py             # ORM models
-│   └── schemas.py        # Request/response schemas
+│   ├── db.py              # ORM models
+│   └── schemas.py         # Request/response schemas
 ├── routers/
-│   └── chat.py           # /health, /chat, confidence scoring
+│   └── chat.py            # /health, /chat, confidence scoring
 ├── services/
-│   ├── movie_agent.py    # ReAct loop, grounding, tracing
-│   ├── agent_tools.py    # retrieve_movies, search_streaming
-│   └── session.py        # In-memory session store
+│   ├── movie_agent.py     # ReAct loop, grounding, tracing
+│   ├── agent_tools.py     # retrieve_movies, search_streaming
+│   └── session.py         # In-memory session store
 ├── llm/
-│   ├── provider.py       # LLMProvider Protocol
+│   ├── provider.py        # LLMProvider Protocol
 │   └── openai_provider.py
 ├── repository/
-│   └── movie_repo.py     # SQL query builder
+│   └── movie_repo.py      # SQL query builder
 └── search/
-    └── vector_store.py   # FAISS index
+    └── vector_store.py    # FAISS index
 scripts/
-├── ingest.py             # TMDB CSV → SQLite + FAISS
-├── ingest_streaming.py   # Streaming CSV → movie_platforms
-└── eval.py               # Evaluation harness
-tests/                    # Unit/integration tests
-data/                     # DB, index, CSVs, eval queries
+├── ingest.py              # TMDB CSV → SQLite + FAISS
+├── ingest_streaming.py    # Streaming CSV → movie_platforms
+└── eval.py                # Evaluation harness
+tests/                     # Unit/integration tests
+data/                      # DB, index, CSVs, eval queries
+Makefile                   # setup, ingest, run, test, eval, lint, clean
+requirements.txt           # Python dependencies
+.env.example               # Environment variable template
 ```
 
 ## Testing
@@ -220,7 +234,7 @@ Tests use an in-memory SQLite database seeded with 5 movies and a `MockLLMProvid
 
 ### Evaluation
 
-An evaluation harness (`scripts/eval.py`) runs 16 predefined queries against the live server and measures strategy accuracy, hallucination rate, and retrieval latency.
+An evaluation harness (`scripts/eval.py`) runs 16 predefined queries against the live server and measures strategy accuracy, hallucination rate (heuristic-based), and retrieval latency.
 
 ```bash
 # Start the server first, then:
@@ -232,8 +246,21 @@ Results from the last run (16 queries covering SQL, semantic, hybrid, and stream
 | Metric | Result |
 |--------|--------|
 | Strategy accuracy | 100% (all queries used the expected retrieval path) |
-| Hallucination rate | 0% (no invented movie titles in any response) |
+| Hallucination rate | 0% (heuristic-based — checks bold-formatted titles against retrieved set; see limitations above) |
 | Reasoning rate | 81% (13/16 responses included grounding reasoning) |
+
+## Makefile Reference
+
+| Command | Description |
+|---------|-------------|
+| `make setup` | Create venv, install dependencies, copy `.env.example` |
+| `make ingest` | Ingest TMDB movies + credits into SQLite and build FAISS index |
+| `make ingest-streaming` | Ingest streaming platform availability data |
+| `make run` | Start the FastAPI server on port 8000 |
+| `make test` | Run the test suite (28 tests) |
+| `make eval` | Run evaluation harness against live server |
+| `make lint` | Run ruff linter and formatter checks |
+| `make clean` | Remove database, FAISS index, and `__pycache__` dirs |
 
 ## Configuration
 
@@ -241,7 +268,7 @@ All via environment variables (`.env.example`):
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `OPENAI_API_KEY` | -- | Required |
+| `OPENAI_API_KEY` | — | Required |
 | `OPENAI_MODEL` | `gpt-4o-mini` | LLM model |
 | `DATABASE_URL` | `sqlite+aiosqlite:///./data/movies.db` | SQLite path |
 | `EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | Sentence transformer |
